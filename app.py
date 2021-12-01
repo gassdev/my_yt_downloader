@@ -4,6 +4,7 @@ from threading import Thread
 from pytube import YouTube
 from tkinter import messagebox
 from decouple import config
+from pyyoutube.error import PyYouTubeException
 
 def get_list_videos():
     global playlist_item_by_id
@@ -19,17 +20,25 @@ def get_list_videos():
         playlist_id = playlistId.get()
 
     # Get list of video links
-    playlist_item_by_id = api.get_playlist_items(
+    try:
+        playlist_item_by_id = api.get_playlist_items(
         playlist_id=playlist_id,
         count=None,
         return_json=True
         )
     
-    # Iterate through all video links and insert into listbox
-    for index, videoid in enumerate(playlist_item_by_id['items']):
+        # Iterate through all video links and insert into listbox
+        for index, videoid in enumerate(playlist_item_by_id['items']):
+            list_box.insert(
+                END,
+                f"{str(index+1)}. {videoid['contentDetails']['videoId']}"
+            )
+    except PyYouTubeException:
+        playlist_item_by_id = api.get_video_by_id(video_id=playlistId.get()[len("https://www.youtube.com/watch?v="):], return_json=True)
+        # print("--->",playlist_item_by_id['items'][0]['id'])
         list_box.insert(
             END,
-            f"{str(index+1)}. {videoid['contentDetails']['videoId']}"
+            f"{str(1)}. {playlist_item_by_id['items'][0]['id']}"
         )
 
     download_start.config(state=NORMAL)
@@ -45,7 +54,10 @@ def download_videos():
 
     # Iterate through all selected videos
     for i in list_box.curselection():
-        videoid = playlist_item_by_id['items'][i]['contentDetails']['videoId']
+        try:
+            videoid = playlist_item_by_id['items'][i]['contentDetails']['videoId']
+        except KeyError:
+            videoid = playlist_item_by_id['items'][0]['id']
 
         link = f"https://www.youtube.com/watch?v={videoid}"
 
